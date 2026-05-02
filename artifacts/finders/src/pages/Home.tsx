@@ -111,7 +111,7 @@ export default function Home() {
             </motion.div>
             
             <motion.h1 variants={fadeUp} className="font-serif text-5xl md:text-7xl font-bold leading-tight mb-6 text-white">
-              The Premium Marketplace for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A84C] to-[#F0D080]">Top Tier Talent</span>
+              The Premium Marketplace for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8B6914] to-[#C9A84C]">Top Tier Talent</span>
             </motion.h1>
             
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
@@ -141,7 +141,7 @@ export default function Home() {
                   <Button 
                     type="submit" 
                     disabled={joinWaitlist.isPending}
-                    className="h-12 px-8 rounded-xl bg-gradient-to-r from-primary to-[#F0D080] text-black font-bold hover:opacity-90 transition-opacity whitespace-nowrap"
+                    className="h-12 px-8 rounded-xl bg-gradient-to-r from-primary to-[#C9A84C] text-black font-bold hover:opacity-90 transition-opacity whitespace-nowrap"
                   >
                     {joinWaitlist.isPending ? "Joining..." : "Get Access"}
                   </Button>
