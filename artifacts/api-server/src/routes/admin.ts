@@ -2,6 +2,7 @@ import { Router } from "express";
 import crypto from "crypto";
 import { db, waitlistTable } from "@workspace/db";
 import { isNull, desc, eq } from "drizzle-orm";
+import { createUnsubscribeToken } from "./waitlist";
 
 const router = Router();
 
@@ -96,7 +97,9 @@ router.post("/admin/notify", requireAdmin, async (req, res) => {
 
     for (const entry of entries) {
       const firstName = entry.name ? entry.name.split(" ")[0] : "there";
-      const html = buildEmailHtml(firstName, emailSubject, emailMessage);
+      const unsubscribeToken = createUnsubscribeToken(entry.email);
+      const unsubscribeUrl = buildUnsubscribeUrl(entry.email, unsubscribeToken);
+      const html = buildEmailHtml(firstName, emailSubject, emailMessage, unsubscribeUrl);
 
       try {
         const response = await fetch("https://api.resend.com/emails", {
@@ -138,7 +141,13 @@ router.post("/admin/notify", requireAdmin, async (req, res) => {
   }
 });
 
-function buildEmailHtml(firstName: string, subject: string, message: string): string {
+function buildUnsubscribeUrl(email: string, token: string): string {
+  const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
+  const base = domains ? `https://${domains}` : "http://localhost:80";
+  return `${base}/api/waitlist/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+}
+
+function buildEmailHtml(firstName: string, subject: string, message: string, unsubscribeUrl: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -191,9 +200,14 @@ function buildEmailHtml(firstName: string, subject: string, message: string): st
               <p style="margin:0;font-size:14px;color:rgba(232,232,232,0.4);line-height:1.7;">Stay tuned — the wait is almost over.<br/><span style="color:#C9A84C;font-weight:600;">The Finders Team</span></p>
             </td>
           </tr>
+          <!-- Footer -->
           <tr>
             <td align="center" style="padding-top:24px;">
-              <p style="margin:0;font-size:11px;color:rgba(232,232,232,0.2);">You received this because you joined the Finders waitlist.</p>
+              <p style="margin:0 0 6px 0;font-size:11px;color:rgba(232,232,232,0.2);">You received this because you joined the Finders waitlist.</p>
+              <p style="margin:0;font-size:11px;color:rgba(232,232,232,0.2);">
+                Don't want future emails?
+                <a href="${unsubscribeUrl}" style="color:rgba(201,168,76,0.6);text-decoration:underline;">Unsubscribe</a>
+              </p>
             </td>
           </tr>
         </table>
