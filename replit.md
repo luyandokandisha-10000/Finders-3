@@ -25,3 +25,23 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Finders Landing Page (`artifacts/finders`)
+
+React + Vite landing page for the Finders mobile app. Black / dark-gold (#8B6914 → #C9A84C) theme.
+
+### Features
+- Public landing page with waitlist signup (PostgreSQL-backed)
+- `/admin` dashboard: searchable/paginated waitlist table, CSV export, password protection
+- **Notify All**: sends branded HTML launch emails to waitlist subscribers via Resend
+
+### Email (Resend)
+- Uses Resend REST API directly (no SDK) — secrets: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
+- NOTE: The Resend Replit integration connector was dismissed by the user; credentials are stored as plain secrets instead.
+- Endpoint: `POST /api/admin/notify` — requires admin Bearer token
+- Tracks sent status via `notified_at` column on `waitlist` table
+- Supports sending to "new only" (unnotified) or everyone
+
+### Admin Auth
+- In-memory token Set in `artifacts/api-server/src/routes/admin.ts` — resets on server restart
+- Secret: `ADMIN_PASSWORD`

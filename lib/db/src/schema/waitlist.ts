@@ -7,8 +7,9 @@ export const waitlistTable = pgTable("waitlist", {
   email: text("email").notNull().unique(),
   name: text("name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  notifiedAt: timestamp("notified_at"),
 });
 
-export const insertWaitlistSchema = createInsertSchema(waitlistTable).omit({ id: true, createdAt: true });
+export const insertWaitlistSchema = createInsertSchema(waitlistTable).omit({ id: true, createdAt: true, notifiedAt: true });
 export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;
 export type Waitlist = typeof waitlistTable.$inferSelect;

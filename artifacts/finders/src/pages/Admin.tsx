@@ -7,9 +7,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  ArrowLeft,
   Crown,
-  LogOut
+  LogOut,
+  Send,
+  Mail,
+  X,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import {
   useListWaitlistEntries,
@@ -55,14 +59,218 @@ function useAdminAuth() {
   return { token, verified, checking, login, logout };
 }
 
+type NotifyStatus = { total: number; unnotified: number; alreadyNotified: number } | null;
+type NotifyResult = { sent: number; failed: number; message: string } | null;
+
+function NotifyDialog({
+  token,
+  onClose,
+}: {
+  token: string;
+  onClose: () => void;
+}) {
+  const [subject, setSubject] = useState("Finders is almost here — you're on the list");
+  const [message, setMessage] = useState(
+    "We're putting the final touches on Finders. Get ready to find your next gig, land your next client, and sell your best work. We'll be in touch very soon."
+  );
+  const [notifyAll, setNotifyAll] = useState(false);
+  const [status, setStatus] = useState<NotifyStatus>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<NotifyResult>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/notify-status", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => setStatus(d))
+      .catch(() => setError("Failed to load recipient status."))
+      .finally(() => setLoadingStatus(false));
+  }, [token]);
+
+  const recipientCount = notifyAll ? (status?.total ?? 0) : (status?.unnotified ?? 0);
+
+  const handleSend = async () => {
+    if (recipientCount === 0) return;
+    setSending(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/admin/notify", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ subject, message, notifyAll }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setError(data.error || "Something went wrong.");
+      } else {
+        setResult(data);
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+      <div className="bg-[#111111] border border-[#8B6914]/30 rounded-2xl shadow-[0_0_60px_rgba(139,105,20,0.15)] w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-[#8B6914]/20">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[#8B6914]/20 flex items-center justify-center">
+              <Mail className="w-4 h-4 text-[#C9A84C]" />
+            </div>
+            <div>
+              <h3 className="font-serif text-lg text-white font-semibold">Send Launch Email</h3>
+              <p className="text-xs text-white/40 mt-0.5">Notify your waitlist subscribers</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {result ? (
+          /* Success state */
+          <div className="p-8 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-[#8B6914]/20 flex items-center justify-center">
+              <CheckCircle2 className="w-7 h-7 text-[#C9A84C]" />
+            </div>
+            <div>
+              <p className="text-white font-semibold text-lg">{result.message}</p>
+              {result.failed > 0 && (
+                <p className="text-red-400 text-sm mt-1">{result.failed} email{result.failed !== 1 ? "s" : ""} failed to send.</p>
+              )}
+            </div>
+            <Button onClick={onClose} className="mt-2 bg-[#8B6914] hover:bg-[#C9A84C] text-black font-semibold">
+              Done
+            </Button>
+          </div>
+        ) : (
+          /* Form state */
+          <div className="p-6 flex flex-col gap-5">
+            {/* Recipient selector */}
+            <div className="bg-black/30 border border-[#8B6914]/15 rounded-xl p-4">
+              {loadingStatus ? (
+                <Skeleton className="h-5 w-40 bg-white/10" />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs text-white/40 uppercase tracking-wider font-medium">Recipients</p>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div
+                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          !notifyAll ? "border-[#C9A84C] bg-[#C9A84C]" : "border-white/30 group-hover:border-white/50"
+                        }`}
+                        onClick={() => setNotifyAll(false)}
+                      >
+                        {!notifyAll && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                      </div>
+                      <span className="text-sm text-white/80" onClick={() => setNotifyAll(false)}>
+                        New only —{" "}
+                        <span className="text-[#C9A84C] font-semibold">{status?.unnotified ?? 0}</span>{" "}
+                        <span className="text-white/40">not yet notified</span>
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div
+                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          notifyAll ? "border-[#C9A84C] bg-[#C9A84C]" : "border-white/30 group-hover:border-white/50"
+                        }`}
+                        onClick={() => setNotifyAll(true)}
+                      >
+                        {notifyAll && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                      </div>
+                      <span className="text-sm text-white/80" onClick={() => setNotifyAll(true)}>
+                        Everyone —{" "}
+                        <span className="text-[#C9A84C] font-semibold">{status?.total ?? 0}</span>{" "}
+                        <span className="text-white/40">total subscribers</span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Subject */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-white/40 uppercase tracking-wider font-medium">Subject line</label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="w-full bg-black/50 border border-[#8B6914]/30 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#8B6914] transition-colors"
+                placeholder="Email subject..."
+              />
+            </div>
+
+            {/* Message */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-white/40 uppercase tracking-wider font-medium">Message body</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                className="w-full bg-black/50 border border-[#8B6914]/30 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#8B6914] transition-colors resize-none"
+                placeholder="Your message..."
+              />
+              <p className="text-xs text-white/25">This message is placed inside a branded Finders email template.</p>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <button
+                onClick={onClose}
+                className="text-sm text-white/40 hover:text-white/70 transition-colors"
+              >
+                Cancel
+              </button>
+              <Button
+                onClick={handleSend}
+                disabled={sending || recipientCount === 0 || !subject.trim() || !message.trim()}
+                className="bg-[#8B6914] hover:bg-[#C9A84C] text-black font-semibold disabled:opacity-40 disabled:cursor-not-allowed min-w-[140px]"
+              >
+                {sending ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-black border-t-transparent animate-spin" />
+                    Sending…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Send className="w-3.5 h-3.5" />
+                    Send to {recipientCount} {recipientCount === 1 ? "person" : "people"}
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { token, verified, checking, login, logout } = useAdminAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const limit = 10;
+  const [showNotify, setShowNotify] = useState(false);
 
-  // Reset page when search changes
   React.useEffect(() => {
     setPage(1);
   }, [debouncedSearch]);
@@ -102,8 +310,12 @@ export default function Admin() {
 
   return (
     <div className="min-h-[100dvh] bg-[#0A0A0A] text-[#E8E8E8] font-sans selection:bg-[#8B6914] selection:text-white">
+      {showNotify && token && (
+        <NotifyDialog token={token} onClose={() => setShowNotify(false)} />
+      )}
+
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-[#8B6914]/20 bg-[#0A0A0A]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b border-[#8B6914]/20 bg-[#0A0A0A]/80 backdrop-blur-md">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
@@ -117,14 +329,7 @@ export default function Admin() {
               Admin Dashboard
             </h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to site</span>
-            </Link>
+          <div className="flex items-center gap-3">
             <button
               onClick={logout}
               className="flex items-center gap-2 text-sm text-white/40 hover:text-red-400 transition-colors"
@@ -142,27 +347,40 @@ export default function Admin() {
           <div>
             <h2 className="font-serif text-3xl md:text-4xl text-white mb-2">Waitlist Management</h2>
             <p className="text-white/60 text-sm md:text-base">
-              View, search, and export your early access signups.
+              View, search, export, and notify your early access signups.
             </p>
           </div>
 
-          <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)] shrink-0 w-full md:w-auto">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-6">
-              <CardTitle className="text-sm font-medium text-white/70 uppercase tracking-wider">
-                Total Signups
-              </CardTitle>
-              <Users className="h-4 w-4 text-[#C9A84C]" />
-            </CardHeader>
-            <CardContent className="px-6 pb-4">
-              <div className="text-3xl font-serif font-bold text-white">
-                {countLoading ? (
-                  <Skeleton className="h-9 w-20 bg-white/10" />
-                ) : (
-                  countData?.count?.toLocaleString() || "0"
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Notify button */}
+            <Button
+              onClick={() => setShowNotify(true)}
+              className="flex-1 md:flex-none bg-[#8B6914]/20 hover:bg-[#8B6914]/40 border border-[#8B6914]/40 text-[#C9A84C] font-semibold transition-all"
+              variant="outline"
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Notify All
+            </Button>
+
+            {/* Stat card */}
+            <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)] shrink-0 flex-1 md:w-auto">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-6">
+                <CardTitle className="text-sm font-medium text-white/70 uppercase tracking-wider">
+                  Total Signups
+                </CardTitle>
+                <Users className="h-4 w-4 text-[#C9A84C]" />
+              </CardHeader>
+              <CardContent className="px-6 pb-4">
+                <div className="text-3xl font-serif font-bold text-white">
+                  {countLoading ? (
+                    <Skeleton className="h-9 w-20 bg-white/10" />
+                  ) : (
+                    countData?.count?.toLocaleString() || "0"
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <div className="bg-[#111111] border border-[#8B6914]/20 rounded-xl overflow-hidden shadow-2xl">
