@@ -14,3 +14,20 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Submit email to join the Finders app waitlist
+ * @summary Join waitlist
+ */
+export const JoinWaitlistBody = zod.object({
+  email: zod.string().email(),
+  name: zod.string().optional(),
+});
+
+/**
+ * Returns total number of people on the waitlist
+ * @summary Get waitlist count
+ */
+export const GetWaitlistCountResponse = zod.object({
+  count: zod.number(),
+});

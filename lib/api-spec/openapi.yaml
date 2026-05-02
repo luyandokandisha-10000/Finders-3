@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: waitlist
+    description: Waitlist operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /waitlist:
+    post:
+      operationId: joinWaitlist
+      tags: [waitlist]
+      summary: Join waitlist
+      description: Submit email to join the Finders app waitlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaitlistEntry"
+      responses:
+        "201":
+          description: Successfully joined waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistResponse"
+        "409":
+          description: Email already on waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getWaitlistCount
+      tags: [waitlist]
+      summary: Get waitlist count
+      description: Returns total number of people on the waitlist
+      responses:
+        "200":
+          description: Waitlist count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistCount"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +72,40 @@ components:
           type: string
       required:
         - status
-
+    WaitlistEntry:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+      required:
+        - email
+    WaitlistResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        position:
+          type: integer
+      required:
+        - success
+        - message
+        - position
+    WaitlistCount:
+      type: object
+      properties:
+        count:
+          type: integer
+      required:
+        - count
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

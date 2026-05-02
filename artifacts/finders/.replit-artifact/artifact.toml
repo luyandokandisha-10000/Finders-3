@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Finders Landing Page"
+version = "1.0.0"
+id = "artifacts/finders"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19262
+
+[services.development]
+run = "pnpm --filter @workspace/finders run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/finders", "run", "build" ]
+publicDir = "artifacts/finders/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19262"
+BASE_PATH = "/"
