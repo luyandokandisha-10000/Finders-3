@@ -31,3 +31,30 @@ export const JoinWaitlistBody = zod.object({
 export const GetWaitlistCountResponse = zod.object({
   count: zod.number(),
 });
+
+/**
+ * Returns paginated list of waitlist entries with optional search
+ * @summary List all waitlist entries
+ */
+export const listWaitlistEntriesQueryPageDefault = 1;
+export const listWaitlistEntriesQueryLimitDefault = 50;
+
+export const ListWaitlistEntriesQueryParams = zod.object({
+  search: zod.coerce.string().optional().describe("Search by name or email"),
+  page: zod.coerce.number().default(listWaitlistEntriesQueryPageDefault),
+  limit: zod.coerce.number().default(listWaitlistEntriesQueryLimitDefault),
+});
+
+export const ListWaitlistEntriesResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+  page: zod.number(),
+  limit: zod.number(),
+});

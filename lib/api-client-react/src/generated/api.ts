@@ -19,7 +19,9 @@ import type {
 import type {
   ErrorResponse,
   HealthStatus,
+  ListWaitlistEntriesParams,
   WaitlistCount,
+  WaitlistEntriesList,
   WaitlistEntry,
   WaitlistResponse,
 } from "./api.schemas";
@@ -264,6 +266,183 @@ export function useGetWaitlistCount<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetWaitlistCountQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns paginated list of waitlist entries with optional search
+ * @summary List all waitlist entries
+ */
+export const getListWaitlistEntriesUrl = (
+  params?: ListWaitlistEntriesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/waitlist/entries?${stringifiedParams}`
+    : `/api/waitlist/entries`;
+};
+
+export const listWaitlistEntries = async (
+  params?: ListWaitlistEntriesParams,
+  options?: RequestInit,
+): Promise<WaitlistEntriesList> => {
+  return customFetch<WaitlistEntriesList>(getListWaitlistEntriesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListWaitlistEntriesQueryKey = (
+  params?: ListWaitlistEntriesParams,
+) => {
+  return [`/api/waitlist/entries`, ...(params ? [params] : [])] as const;
+};
+
+export const getListWaitlistEntriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWaitlistEntries>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListWaitlistEntriesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWaitlistEntries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListWaitlistEntriesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listWaitlistEntries>>
+  > = ({ signal }) =>
+    listWaitlistEntries(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWaitlistEntries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWaitlistEntriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWaitlistEntries>>
+>;
+export type ListWaitlistEntriesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all waitlist entries
+ */
+
+export function useListWaitlistEntries<
+  TData = Awaited<ReturnType<typeof listWaitlistEntries>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListWaitlistEntriesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWaitlistEntries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWaitlistEntriesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns all waitlist entries as a CSV file
+ * @summary Export waitlist as CSV
+ */
+export const getExportWaitlistUrl = () => {
+  return `/api/waitlist/export`;
+};
+
+export const exportWaitlist = async (
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportWaitlistUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportWaitlistQueryKey = () => {
+  return [`/api/waitlist/export`] as const;
+};
+
+export const getExportWaitlistQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportWaitlist>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof exportWaitlist>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getExportWaitlistQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof exportWaitlist>>> = ({
+    signal,
+  }) => exportWaitlist({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportWaitlist>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportWaitlistQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportWaitlist>>
+>;
+export type ExportWaitlistQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Export waitlist as CSV
+ */
+
+export function useExportWaitlist<
+  TData = Awaited<ReturnType<typeof exportWaitlist>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof exportWaitlist>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportWaitlistQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

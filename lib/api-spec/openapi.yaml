@@ -63,6 +63,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WaitlistCount"
+  /waitlist/entries:
+    get:
+      operationId: listWaitlistEntries
+      tags: [waitlist]
+      summary: List all waitlist entries
+      description: Returns paginated list of waitlist entries with optional search
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by name or email
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Waitlist entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistEntriesList"
+  /waitlist/export:
+    get:
+      operationId: exportWaitlist
+      tags: [waitlist]
+      summary: Export waitlist as CSV
+      description: Returns all waitlist entries as a CSV file
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
 components:
   schemas:
     HealthStatus:
@@ -102,6 +147,41 @@ components:
           type: integer
       required:
         - count
+    WaitlistEntryRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - createdAt
+    WaitlistEntriesList:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/WaitlistEntryRecord"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - entries
+        - total
+        - page
+        - limit
     ErrorResponse:
       type: object
       properties:

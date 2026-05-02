@@ -24,6 +24,29 @@ export interface WaitlistCount {
   count: number;
 }
 
+export interface WaitlistEntryRecord {
+  id: number;
+  email: string;
+  name?: string | null;
+  createdAt: string;
+}
+
+export interface WaitlistEntriesList {
+  entries: WaitlistEntryRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }
+
+export type ListWaitlistEntriesParams = {
+  /**
+   * Search by name or email
+   */
+  search?: string;
+  page?: number;
+  limit?: number;
+};
