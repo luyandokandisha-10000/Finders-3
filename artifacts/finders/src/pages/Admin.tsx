@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import {
@@ -8,7 +8,8 @@ import {
   ChevronRight,
   Users,
   ArrowLeft,
-  Crown
+  Crown,
+  LogOut
 } from "lucide-react";
 import {
   useListWaitlistEntries,
@@ -28,8 +29,34 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import AdminLogin from "./AdminLogin";
+
+function useAdminAuth() {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem("admin_token"));
+  const [verified, setVerified] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    if (!token) { setChecking(false); return; }
+    fetch("/api/admin/verify", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => { if (r.ok) setVerified(true); else { localStorage.removeItem("admin_token"); setToken(null); } })
+      .catch(() => { localStorage.removeItem("admin_token"); setToken(null); })
+      .finally(() => setChecking(false));
+  }, [token]);
+
+  const login = (t: string) => { setToken(t); setVerified(true); };
+  const logout = async () => {
+    await fetch("/api/admin/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    localStorage.removeItem("admin_token");
+    setToken(null);
+    setVerified(false);
+  };
+
+  return { token, verified, checking, login, logout };
+}
 
 export default function Admin() {
+  const { token, verified, checking, login, logout } = useAdminAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
@@ -61,6 +88,18 @@ export default function Admin() {
     window.open("/api/waitlist/export", "_blank");
   };
 
+  if (checking) {
+    return (
+      <div className="min-h-[100dvh] bg-[#0A0A0A] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-[#8B6914] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!verified) {
+    return <AdminLogin onLogin={login} />;
+  }
+
   return (
     <div className="min-h-[100dvh] bg-[#0A0A0A] text-[#E8E8E8] font-sans selection:bg-[#8B6914] selection:text-white">
       {/* Header */}
@@ -78,13 +117,23 @@ export default function Admin() {
               Admin Dashboard
             </h1>
           </div>
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to site
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Back to site</span>
+            </Link>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 text-sm text-white/40 hover:text-red-400 transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
+          </div>
         </div>
       </header>
 
