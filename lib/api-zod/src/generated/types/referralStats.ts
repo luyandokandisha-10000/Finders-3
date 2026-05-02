@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface WaitlistEntry {
-  email: string;
-  name?: string;
-  referredBy?: string;
+export interface ReferralStats {
+  referralCount: number;
+  position: number;
+  totalSignups: number;
 }

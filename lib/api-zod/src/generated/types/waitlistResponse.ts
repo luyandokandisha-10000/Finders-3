@@ -10,4 +10,5 @@ export interface WaitlistResponse {
   success: boolean;
   message: string;
   position: number;
+  referralCode: string;
 }

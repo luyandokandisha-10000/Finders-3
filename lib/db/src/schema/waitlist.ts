@@ -8,8 +8,14 @@ export const waitlistTable = pgTable("waitlist", {
   name: text("name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   notifiedAt: timestamp("notified_at"),
+  referralCode: text("referral_code").notNull().unique(),
+  referredBy: text("referred_by"),
 });
 
-export const insertWaitlistSchema = createInsertSchema(waitlistTable).omit({ id: true, createdAt: true, notifiedAt: true });
+export const insertWaitlistSchema = createInsertSchema(waitlistTable).omit({
+  id: true,
+  createdAt: true,
+  notifiedAt: true,
+});
 export type InsertWaitlist = z.infer<typeof insertWaitlistSchema>;
 export type Waitlist = typeof waitlistTable.$inferSelect;

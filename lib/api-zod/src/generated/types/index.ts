@@ -9,6 +9,7 @@
 export * from "./errorResponse";
 export * from "./healthStatus";
 export * from "./listWaitlistEntriesParams";
+export * from "./referralStats";
 export * from "./waitlistCount";
 export * from "./waitlistEntriesList";
 export * from "./waitlistEntry";

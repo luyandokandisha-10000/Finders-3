@@ -1,6 +1,12 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { useJoinWaitlist, useGetWaitlistCount, getGetWaitlistCountQueryKey } from "@workspace/api-client-react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  useJoinWaitlist,
+  useGetWaitlistCount,
+  useGetReferralStats,
+  getGetWaitlistCountQueryKey,
+  getGetReferralStatsQueryKey,
+} from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,17 +16,138 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { BriefcaseIcon, DollarSign, Users, ChevronRight, CheckCircle2 } from "lucide-react";
+import { BriefcaseIcon, DollarSign, Users, ChevronRight, CheckCircle2, Copy, Check, Share2, TrendingUp } from "lucide-react";
 import logo from "@assets/IMG_20260428_115702~2_1777703108675.jpg";
+
+const REFERRAL_CODE_KEY = "finders_referral_code";
+
+function getReferralCodeFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("ref")?.toUpperCase() ?? null;
+}
+
+function buildShareUrl(code: string): string {
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?ref=${code}`;
+}
+
+function ReferralCard({ referralCode, position }: { referralCode: string; position: number }) {
+  const [copied, setCopied] = useState(false);
+  const shareUrl = buildShareUrl(referralCode);
+
+  const { data: stats, refetch } = useGetReferralStats(referralCode, {
+    query: {
+      queryKey: getGetReferralStatsQueryKey(referralCode),
+      refetchInterval: 15000,
+    },
+  });
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback for older browsers
+      const el = document.createElement("textarea");
+      el.value = shareUrl;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const currentPosition = stats?.position ?? position;
+  const referralCount = stats?.referralCount ?? 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="w-full max-w-md mx-auto"
+    >
+      {/* Success header */}
+      <div className="flex items-center justify-center gap-2 mb-6 text-[#C9A84C] font-medium">
+        <CheckCircle2 className="w-5 h-5" />
+        <span>You're on the exclusive waitlist</span>
+      </div>
+
+      {/* Position & referral stats */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-black/40 border border-white/10 rounded-xl p-4 text-center">
+          <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Your Position</p>
+          <p className="text-3xl font-serif font-bold text-white">#{currentPosition.toLocaleString()}</p>
+          {referralCount > 0 && (
+            <p className="text-xs text-[#C9A84C] mt-1 flex items-center justify-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              Moved up by referrals
+            </p>
+          )}
+        </div>
+        <div className="bg-black/40 border border-white/10 rounded-xl p-4 text-center">
+          <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Referrals</p>
+          <p className="text-3xl font-serif font-bold text-white">{referralCount}</p>
+          <p className="text-xs text-white/40 mt-1">people referred</p>
+        </div>
+      </div>
+
+      {/* Share link */}
+      <div className="bg-black/40 border border-[#8B6914]/30 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Share2 className="w-4 h-4 text-[#C9A84C]" />
+          <p className="text-sm font-semibold text-white">Move up the list — share your link</p>
+        </div>
+        <p className="text-xs text-white/50 mb-3 leading-relaxed">
+          Every friend who signs up through your link moves you closer to the front. Each referral bumps you ahead in line.
+        </p>
+        <div className="flex items-center gap-2 bg-black/60 border border-white/10 rounded-lg px-3 py-2.5">
+          <span className="text-xs text-white/60 flex-1 truncate font-mono">{shareUrl}</span>
+          <button
+            onClick={handleCopy}
+            className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-[#C9A84C] hover:text-white transition-colors"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                Copy
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function Home() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [hasJoined, setHasJoined] = useState(false);
+  const [myReferralCode, setMyReferralCode] = useState<string | null>(null);
+  const [myPosition, setMyPosition] = useState<number>(1);
+  const refCodeFromUrl = useRef(getReferralCodeFromUrl());
+
+  // On mount, restore saved referral code if the user already signed up
+  useEffect(() => {
+    const saved = localStorage.getItem(REFERRAL_CODE_KEY);
+    if (saved) {
+      setMyReferralCode(saved);
+      setHasJoined(true);
+    }
+  }, []);
 
   const { data: waitlistData } = useGetWaitlistCount({
-    query: { queryKey: getGetWaitlistCountQueryKey() }
+    query: { queryKey: getGetWaitlistCountQueryKey() },
   });
 
   const joinWaitlist = useJoinWaitlist();
@@ -30,44 +157,50 @@ export default function Home() {
     if (!email) return;
 
     joinWaitlist.mutate(
-      { data: { email, name } },
       {
-        onSuccess: () => {
+        data: {
+          email,
+          name,
+          referredBy: refCodeFromUrl.current ?? undefined,
+        },
+      },
+      {
+        onSuccess: (data) => {
+          const code = (data as { referralCode?: string }).referralCode ?? "";
+          const pos = (data as { position?: number }).position ?? 1;
+          setMyReferralCode(code);
+          setMyPosition(pos);
           setHasJoined(true);
+          if (code) localStorage.setItem(REFERRAL_CODE_KEY, code);
           toast({
             title: "You're on the list",
-            description: "We'll notify you when we launch.",
+            description: "Share your link to move up the waitlist.",
           });
         },
-        onError: () => {
+        onError: (err: unknown) => {
+          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
           toast({
-            title: "Something went wrong",
-            description: "Please try again later.",
-            variant: "destructive"
+            title: msg === "This email is already on the waitlist" ? "Already on the list" : "Something went wrong",
+            description: msg ?? "Please try again later.",
+            variant: "destructive",
           });
-        }
+        },
       }
     );
   };
 
   const staggerChildren = {
     hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2
-      }
-    }
+    show: { opacity: 1, transition: { staggerChildren: 0.2 } },
   };
 
   const fadeUp = {
     hidden: { opacity: 0, y: 30 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground selection:bg-primary selection:text-primary-foreground font-sans overflow-x-hidden">
-      
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-white/5">
         <div className="container mx-auto px-6 h-20 flex items-center justify-between">
@@ -77,29 +210,28 @@ export default function Home() {
             </div>
             <span className="font-serif text-xl font-bold tracking-wide text-white">FINDERS</span>
           </div>
-          
+
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
             <a href="#features" className="hover:text-primary transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-primary transition-colors">How It Works</a>
             <a href="#faq" className="hover:text-primary transition-colors">FAQ</a>
           </div>
 
-          <Button 
+          <Button
             className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-6 font-semibold"
             onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
           >
-            Join Waitlist
+            {hasJoined ? "My Spot" : "Join Waitlist"}
           </Button>
         </div>
       </nav>
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden flex items-center min-h-[90vh]">
-        {/* Glow effect */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-        
+
         <div className="container mx-auto px-6 relative z-10">
-          <motion.div 
+          <motion.div
             className="max-w-3xl mx-auto text-center"
             initial="hidden"
             animate="show"
@@ -109,54 +241,86 @@ export default function Home() {
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Exclusive Access
             </motion.div>
-            
+
             <motion.h1 variants={fadeUp} className="font-serif text-5xl md:text-7xl font-bold leading-tight mb-6 text-white">
-              The Premium Marketplace for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8B6914] to-[#C9A84C]">Top Tier Talent</span>
+              The Premium Marketplace for{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#8B6914] to-[#C9A84C]">
+                Top Tier Talent
+              </span>
             </motion.h1>
-            
+
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
               Land high-paying gigs, sell your digital products, and connect with elite clients. Finders is where the ambitious get paid.
             </motion.p>
-            
-            <motion.div variants={fadeUp} id="waitlist" className="bg-card/50 backdrop-blur-sm border border-white/5 p-2 rounded-2xl max-w-md mx-auto shadow-2xl">
-              {!hasJoined ? (
-                <form onSubmit={handleJoin} className="flex flex-col sm:flex-row gap-2">
-                  <Input 
-                    type="text" 
-                    placeholder="Your Name" 
-                    className="bg-transparent border-none text-white placeholder:text-muted-foreground focus-visible:ring-0 h-12"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                  <div className="hidden sm:block w-px bg-white/10 my-2" />
-                  <Input 
-                    type="email" 
-                    placeholder="Email Address" 
-                    className="bg-transparent border-none text-white placeholder:text-muted-foreground focus-visible:ring-0 h-12"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                  <Button 
-                    type="submit" 
-                    disabled={joinWaitlist.isPending}
-                    className="h-12 px-8 rounded-xl bg-gradient-to-r from-primary to-[#C9A84C] text-black font-bold hover:opacity-90 transition-opacity whitespace-nowrap"
+
+            <motion.div variants={fadeUp} id="waitlist" className="bg-card/50 backdrop-blur-sm border border-white/5 p-4 md:p-6 rounded-2xl max-w-md mx-auto shadow-2xl">
+              <AnimatePresence mode="wait">
+                {!hasJoined ? (
+                  <motion.form
+                    key="form"
+                    onSubmit={handleJoin}
+                    className="flex flex-col gap-3"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                   >
-                    {joinWaitlist.isPending ? "Joining..." : "Get Access"}
-                  </Button>
-                </form>
-              ) : (
-                <div className="flex items-center justify-center gap-3 h-12 text-primary font-medium">
-                  <CheckCircle2 className="w-5 h-5" />
-                  You're on the exclusive waitlist.
-                </div>
-              )}
+                    {refCodeFromUrl.current && (
+                      <div className="flex items-center gap-2 text-xs text-[#C9A84C] bg-[#8B6914]/10 border border-[#8B6914]/20 rounded-lg px-3 py-2">
+                        <Share2 className="w-3.5 h-3.5 shrink-0" />
+                        You were invited — you'll both move up the list when you sign up.
+                      </div>
+                    )}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        type="text"
+                        placeholder="Your Name"
+                        className="bg-transparent border border-white/10 text-white placeholder:text-muted-foreground focus-visible:ring-[#8B6914]/50 focus-visible:border-[#8B6914] h-12"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                      <Input
+                        type="email"
+                        placeholder="Email Address"
+                        className="bg-transparent border border-white/10 text-white placeholder:text-muted-foreground focus-visible:ring-[#8B6914]/50 focus-visible:border-[#8B6914] h-12"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={joinWaitlist.isPending}
+                      className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-[#C9A84C] text-black font-bold hover:opacity-90 transition-opacity"
+                    >
+                      {joinWaitlist.isPending ? "Joining..." : "Get Access →"}
+                    </Button>
+                  </motion.form>
+                ) : (
+                  <motion.div
+                    key="referral"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    {myReferralCode ? (
+                      <ReferralCard referralCode={myReferralCode} position={myPosition} />
+                    ) : (
+                      <div className="flex items-center justify-center gap-3 h-12 text-primary font-medium">
+                        <CheckCircle2 className="w-5 h-5" />
+                        You're on the exclusive waitlist.
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
-            
-            {waitlistData && (
+
+            {waitlistData && !hasJoined && (
               <motion.p variants={fadeUp} className="mt-6 text-sm text-muted-foreground">
-                Join <span className="text-white font-semibold">{waitlistData.count.toLocaleString()}</span> professionals already waiting.
+                Join{" "}
+                <span className="text-white font-semibold">{waitlistData.count.toLocaleString()}</span>{" "}
+                professionals already waiting.
               </motion.p>
             )}
           </motion.div>
@@ -173,23 +337,11 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              {
-                icon: BriefcaseIcon,
-                title: "Find Premium Gigs",
-                description: "Access a curated feed of high-paying jobs from verified clients looking for your exact skills."
-              },
-              {
-                icon: DollarSign,
-                title: "Sell Your Projects",
-                description: "List your apps, templates, artwork, and digital products to a hungry audience of buyers."
-              },
-              {
-                icon: Users,
-                title: "Connect with Clients",
-                description: "Build your reputation, chat directly with clients, and manage your freelance business."
-              }
+              { icon: BriefcaseIcon, title: "Find Premium Gigs", description: "Access a curated feed of high-paying jobs from verified clients looking for your exact skills." },
+              { icon: DollarSign, title: "Sell Your Projects", description: "List your apps, templates, artwork, and digital products to a hungry audience of buyers." },
+              { icon: Users, title: "Connect with Clients", description: "Build your reputation, chat directly with clients, and manage your freelance business." },
             ].map((feature, i) => (
-              <motion.div 
+              <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -220,9 +372,9 @@ export default function Home() {
             {[
               { step: "01", title: "Create Your Profile", desc: "Showcase your portfolio, list your skills, and set your rates. Your profile is your digital storefront." },
               { step: "02", title: "Discover Opportunities", desc: "Browse hand-picked gigs or list your digital products on the marketplace. The algorithm matches you with the best fit." },
-              { step: "03", title: "Deliver & Get Paid", desc: "Complete the work, transfer the assets, and receive secure payments directly to your bank account." }
+              { step: "03", title: "Deliver & Get Paid", desc: "Complete the work, transfer the assets, and receive secure payments directly to your bank account." },
             ].map((item, i) => (
-              <motion.div 
+              <motion.div
                 key={i}
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -244,7 +396,7 @@ export default function Home() {
       {/* Social Proof / Hype */}
       <section className="py-24 bg-primary text-black">
         <div className="container mx-auto px-6">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -255,8 +407,8 @@ export default function Home() {
             <p className="text-xl font-medium mb-10 opacity-80">
               We are opening doors to a select group of creators and freelancers. Spots are limited to maintain the quality of the network.
             </p>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-black text-white hover:bg-black/90 rounded-full h-14 px-10 text-lg font-bold shadow-xl"
               onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
             >
@@ -270,7 +422,7 @@ export default function Home() {
       <section id="faq" className="py-24 bg-[#050505]">
         <div className="container mx-auto px-6 max-w-3xl">
           <h2 className="font-serif text-3xl md:text-5xl font-bold text-white mb-12 text-center">Questions?</h2>
-          
+
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-white/10">
               <AccordionTrigger className="text-lg font-medium text-white hover:text-primary">What makes Finders different?</AccordionTrigger>
@@ -296,6 +448,12 @@ export default function Home() {
                 We are currently in closed beta. By joining the waitlist, you'll be notified as soon as we open the next wave of invites.
               </AccordionContent>
             </AccordionItem>
+            <AccordionItem value="item-5" className="border-white/10">
+              <AccordionTrigger className="text-lg font-medium text-white hover:text-primary">How does the referral system work?</AccordionTrigger>
+              <AccordionContent className="text-muted-foreground text-base leading-relaxed">
+                After joining, you get a personal share link. Every person who signs up through your link counts as a referral. More referrals = a better position in line. People with the most referrals get access first.
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
         </div>
       </section>
@@ -309,11 +467,11 @@ export default function Home() {
             </div>
             <span className="font-serif text-lg font-bold text-white">FINDERS</span>
           </div>
-          
+
           <div className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} Finders. All rights reserved.
           </div>
-          
+
           <div className="flex gap-6 text-sm text-muted-foreground">
             <a href="#" className="hover:text-white transition-colors">Twitter</a>
             <a href="#" className="hover:text-white transition-colors">Instagram</a>

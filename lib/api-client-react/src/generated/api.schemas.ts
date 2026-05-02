@@ -12,12 +12,14 @@ export interface HealthStatus {
 export interface WaitlistEntry {
   email: string;
   name?: string;
+  referredBy?: string;
 }
 
 export interface WaitlistResponse {
   success: boolean;
   message: string;
   position: number;
+  referralCode: string;
 }
 
 export interface WaitlistCount {
@@ -36,6 +38,12 @@ export interface WaitlistEntriesList {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface ReferralStats {
+  referralCount: number;
+  position: number;
+  totalSignups: number;
 }
 
 export interface ErrorResponse {

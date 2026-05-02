@@ -22,6 +22,7 @@ export const HealthCheckResponse = zod.object({
 export const JoinWaitlistBody = zod.object({
   email: zod.string().email(),
   name: zod.string().optional(),
+  referredBy: zod.string().optional(),
 });
 
 /**
@@ -57,4 +58,18 @@ export const ListWaitlistEntriesResponse = zod.object({
   total: zod.number(),
   page: zod.number(),
   limit: zod.number(),
+});
+
+/**
+ * Returns referral count and position for a given referral code
+ * @summary Get referral stats
+ */
+export const GetReferralStatsParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const GetReferralStatsResponse = zod.object({
+  referralCount: zod.number(),
+  position: zod.number(),
+  totalSignups: zod.number(),
 });

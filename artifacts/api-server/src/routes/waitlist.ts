@@ -1,7 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { db, waitlistTable } from "@workspace/db";
-import { eq, count, ilike, or, desc } from "drizzle-orm";
+import { eq, count, ilike, or, desc, asc, isNotNull } from "drizzle-orm";
 import { JoinWaitlistBody, ListWaitlistEntriesQueryParams } from "@workspace/api-zod";
 
 const router = Router();
@@ -21,6 +21,16 @@ function verifyUnsubscribeToken(email: string, token: string): boolean {
   }
 }
 
+function generateReferralCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.randomBytes(8);
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars[bytes[i] % chars.length];
+  }
+  return code;
+}
+
 router.post("/waitlist", async (req, res) => {
   const parsed = JoinWaitlistBody.safeParse(req.body);
   if (!parsed.success) {
@@ -28,7 +38,7 @@ router.post("/waitlist", async (req, res) => {
     return;
   }
 
-  const { email, name } = parsed.data;
+  const { email, name, referredBy } = parsed.data as { email: string; name?: string; referredBy?: string };
 
   try {
     const existing = await db
@@ -42,16 +52,50 @@ router.post("/waitlist", async (req, res) => {
       return;
     }
 
-    await db.insert(waitlistTable).values({ email, name });
+    // Validate referral code if provided
+    let validReferredBy: string | null = null;
+    if (referredBy) {
+      const refEntry = await db
+        .select({ referralCode: waitlistTable.referralCode })
+        .from(waitlistTable)
+        .where(eq(waitlistTable.referralCode, referredBy.toUpperCase()))
+        .limit(1);
+      if (refEntry.length > 0) {
+        validReferredBy = refEntry[0].referralCode;
+      }
+    }
+
+    // Generate a unique referral code (retry on collision)
+    let referralCode = generateReferralCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const collision = await db
+        .select({ id: waitlistTable.id })
+        .from(waitlistTable)
+        .where(eq(waitlistTable.referralCode, referralCode))
+        .limit(1);
+      if (collision.length === 0) break;
+      referralCode = generateReferralCode();
+    }
+
+    await db.insert(waitlistTable).values({
+      email,
+      name,
+      referralCode,
+      referredBy: validReferredBy ?? undefined,
+    });
 
     const [{ value: total }] = await db
       .select({ value: count() })
       .from(waitlistTable);
 
+    // Compute effective position based on referral ranking
+    const position = await computePosition(referralCode);
+
     res.status(201).json({
       success: true,
       message: "You're on the list! We'll notify you when Finders launches.",
-      position: Number(total),
+      position,
+      referralCode,
     });
   } catch (err) {
     req.log.error({ err }, "Failed to join waitlist");
@@ -71,6 +115,73 @@ router.get("/waitlist", async (req, res) => {
     res.status(500).json({ error: "Something went wrong." });
   }
 });
+
+router.get("/waitlist/referral/:code", async (req, res) => {
+  const code = req.params.code?.toUpperCase();
+  if (!code) {
+    res.status(400).json({ error: "Code is required." });
+    return;
+  }
+
+  try {
+    const entry = await db
+      .select({ referralCode: waitlistTable.referralCode })
+      .from(waitlistTable)
+      .where(eq(waitlistTable.referralCode, code))
+      .limit(1);
+
+    if (entry.length === 0) {
+      res.status(404).json({ error: "Referral code not found." });
+      return;
+    }
+
+    const [{ value: totalSignups }] = await db.select({ value: count() }).from(waitlistTable);
+    const [{ value: referralCount }] = await db
+      .select({ value: count() })
+      .from(waitlistTable)
+      .where(eq(waitlistTable.referredBy, code));
+
+    const position = await computePosition(code);
+
+    res.json({
+      referralCount: Number(referralCount),
+      position,
+      totalSignups: Number(totalSignups),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get referral stats");
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
+async function computePosition(referralCode: string): Promise<number> {
+  // Get all entries sorted by oldest first for tie-breaking
+  const allEntries = await db
+    .select({ id: waitlistTable.id, referralCode: waitlistTable.referralCode, createdAt: waitlistTable.createdAt })
+    .from(waitlistTable)
+    .orderBy(asc(waitlistTable.createdAt));
+
+  // Count referrals per referral code
+  const allReferred = await db
+    .select({ referredBy: waitlistTable.referredBy })
+    .from(waitlistTable)
+    .where(isNotNull(waitlistTable.referredBy));
+
+  const refCounts = new Map<string, number>();
+  for (const r of allReferred) {
+    if (r.referredBy) {
+      refCounts.set(r.referredBy, (refCounts.get(r.referredBy) ?? 0) + 1);
+    }
+  }
+
+  // Sort by (referralCount DESC, createdAt ASC)
+  const sorted = allEntries
+    .map((e) => ({ referralCode: e.referralCode, count: refCounts.get(e.referralCode) ?? 0, createdAt: e.createdAt }))
+    .sort((a, b) => b.count - a.count || a.createdAt.getTime() - b.createdAt.getTime());
+
+  const idx = sorted.findIndex((e) => e.referralCode === referralCode);
+  return idx === -1 ? sorted.length : idx + 1;
+}
 
 router.get("/waitlist/unsubscribe", async (req, res) => {
   const { email, token } = req.query as { email?: string; token?: string };
@@ -127,7 +238,6 @@ router.get("/waitlist/unsubscribe", async (req, res) => {
     }
 
     await db.delete(waitlistTable).where(eq(waitlistTable.email, email));
-
     req.log.info({ email }, "Unsubscribed from waitlist");
     sendPage(
       "Unsubscribed",
@@ -197,12 +307,15 @@ router.get("/waitlist/export", async (req, res) => {
       .orderBy(desc(waitlistTable.createdAt));
 
     const rows = [
-      ["ID", "Name", "Email", "Joined At"],
+      ["ID", "Name", "Email", "Joined At", "Referral Code", "Referred By", "Referrals Sent"],
       ...entries.map((e) => [
         String(e.id),
         e.name ?? "",
         e.email,
         e.createdAt.toISOString(),
+        e.referralCode,
+        e.referredBy ?? "",
+        "",
       ]),
     ];
 

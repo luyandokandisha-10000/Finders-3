@@ -108,6 +108,31 @@ paths:
             text/csv:
               schema:
                 type: string
+  /waitlist/referral/{code}:
+    get:
+      operationId: getReferralStats
+      tags: [waitlist]
+      summary: Get referral stats
+      description: Returns referral count and position for a given referral code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Referral stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralStats"
+        "404":
+          description: Code not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -125,6 +150,8 @@ components:
           format: email
         name:
           type: string
+        referredBy:
+          type: string
       required:
         - email
     WaitlistResponse:
@@ -136,10 +163,13 @@ components:
           type: string
         position:
           type: integer
+        referralCode:
+          type: string
       required:
         - success
         - message
         - position
+        - referralCode
     WaitlistCount:
       type: object
       properties:
@@ -182,6 +212,19 @@ components:
         - total
         - page
         - limit
+    ReferralStats:
+      type: object
+      properties:
+        referralCount:
+          type: integer
+        position:
+          type: integer
+        totalSignups:
+          type: integer
+      required:
+        - referralCount
+        - position
+        - totalSignups
     ErrorResponse:
       type: object
       properties:
