@@ -210,10 +210,19 @@ components:
         createdAt:
           type: string
           format: date-time
+        referralCount:
+          type: integer
+        referredBy:
+          type: string
+          nullable: true
+        referralCode:
+          type: string
       required:
         - id
         - email
         - createdAt
+        - referralCount
+        - referralCode
     WaitlistEntriesList:
       type: object
       properties:

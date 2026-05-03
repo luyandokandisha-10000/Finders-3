@@ -11,4 +11,7 @@ export interface WaitlistEntryRecord {
   email: string;
   name?: string | null;
   createdAt: Date;
+  referralCount: number;
+  referredBy?: string | null;
+  referralCode: string;
 }

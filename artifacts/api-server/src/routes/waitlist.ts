@@ -333,12 +333,31 @@ router.get("/waitlist/entries", async (req, res) => {
         .where(whereClause),
     ]);
 
+    // Compute referral counts for the returned entries
+    const referralCodes = entries.map((e) => e.referralCode);
+    const referralRows = referralCodes.length > 0
+      ? await db
+          .select({ referredBy: waitlistTable.referredBy })
+          .from(waitlistTable)
+          .where(isNotNull(waitlistTable.referredBy))
+      : [];
+
+    const refCountMap = new Map<string, number>();
+    for (const r of referralRows) {
+      if (r.referredBy) {
+        refCountMap.set(r.referredBy, (refCountMap.get(r.referredBy) ?? 0) + 1);
+      }
+    }
+
     res.json({
       entries: entries.map((e) => ({
         id: e.id,
         email: e.email,
         name: e.name ?? null,
         createdAt: e.createdAt.toISOString(),
+        referralCode: e.referralCode,
+        referredBy: e.referredBy ?? null,
+        referralCount: refCountMap.get(e.referralCode) ?? 0,
       })),
       total: Number(total),
       page,

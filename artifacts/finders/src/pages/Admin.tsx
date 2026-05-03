@@ -13,7 +13,10 @@ import {
   Mail,
   X,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Trophy,
+  Share2,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   useListWaitlistEntries,
@@ -270,6 +273,7 @@ export default function Admin() {
   const [page, setPage] = useState(1);
   const limit = 10;
   const [showNotify, setShowNotify] = useState(false);
+  const [sortByReferrals, setSortByReferrals] = useState(false);
 
   React.useEffect(() => {
     setPage(1);
@@ -291,6 +295,20 @@ export default function Admin() {
   );
 
   const totalPages = listData ? Math.ceil(listData.total / limit) : 1;
+
+  // Derive referral stats from current page data
+  const totalReferralsOnPage = listData?.entries.reduce((sum, e) => sum + (e.referralCount ?? 0), 0) ?? 0;
+  const topReferrer = listData?.entries.reduce<{ name: string | null; count: number } | null>((best, e) => {
+    const c = e.referralCount ?? 0;
+    return !best || c > best.count ? { name: e.name, count: c } : best;
+  }, null);
+
+  // Sorted view (client-side for current page)
+  const displayEntries = React.useMemo(() => {
+    if (!listData?.entries) return [];
+    if (!sortByReferrals) return listData.entries;
+    return [...listData.entries].sort((a, b) => (b.referralCount ?? 0) - (a.referralCount ?? 0));
+  }, [listData?.entries, sortByReferrals]);
 
   const handleExport = () => {
     window.open("/api/waitlist/export", "_blank");
@@ -351,36 +369,63 @@ export default function Admin() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            {/* Notify button */}
-            <Button
-              onClick={() => setShowNotify(true)}
-              className="flex-1 md:flex-none bg-[#8B6914]/20 hover:bg-[#8B6914]/40 border border-[#8B6914]/40 text-[#C9A84C] font-semibold transition-all"
-              variant="outline"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Notify All
-            </Button>
+          <Button
+            onClick={() => setShowNotify(true)}
+            className="bg-[#8B6914]/20 hover:bg-[#8B6914]/40 border border-[#8B6914]/40 text-[#C9A84C] font-semibold transition-all self-start md:self-auto"
+            variant="outline"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Notify All
+          </Button>
+        </div>
 
-            {/* Stat card */}
-            <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)] shrink-0 flex-1 md:w-auto">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-6">
-                <CardTitle className="text-sm font-medium text-white/70 uppercase tracking-wider">
-                  Total Signups
-                </CardTitle>
-                <Users className="h-4 w-4 text-[#C9A84C]" />
-              </CardHeader>
-              <CardContent className="px-6 pb-4">
-                <div className="text-3xl font-serif font-bold text-white">
-                  {countLoading ? (
-                    <Skeleton className="h-9 w-20 bg-white/10" />
-                  ) : (
-                    countData?.count?.toLocaleString() || "0"
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Stat cards row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-5">
+              <CardTitle className="text-xs font-medium text-white/60 uppercase tracking-wider">Total Signups</CardTitle>
+              <Users className="h-4 w-4 text-[#C9A84C]" />
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              <div className="text-3xl font-serif font-bold text-white">
+                {countLoading ? <Skeleton className="h-9 w-20 bg-white/10" /> : (countData?.count?.toLocaleString() || "0")}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-5">
+              <CardTitle className="text-xs font-medium text-white/60 uppercase tracking-wider">Referrals (this page)</CardTitle>
+              <Share2 className="h-4 w-4 text-[#C9A84C]" />
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              <div className="text-3xl font-serif font-bold text-white">
+                {listLoading ? <Skeleton className="h-9 w-20 bg-white/10" /> : totalReferralsOnPage.toLocaleString()}
+              </div>
+              <p className="text-xs text-white/30 mt-1">across current page</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-5">
+              <CardTitle className="text-xs font-medium text-white/60 uppercase tracking-wider">Top Referrer</CardTitle>
+              <Trophy className="h-4 w-4 text-[#C9A84C]" />
+            </CardHeader>
+            <CardContent className="px-5 pb-4">
+              {listLoading ? (
+                <Skeleton className="h-9 w-32 bg-white/10" />
+              ) : topReferrer && topReferrer.count > 0 ? (
+                <>
+                  <div className="text-lg font-serif font-bold text-white truncate">
+                    {topReferrer.name || "Anonymous"}
+                  </div>
+                  <p className="text-xs text-[#C9A84C] mt-0.5">{topReferrer.count} {topReferrer.count === 1 ? "referral" : "referrals"} on this page</p>
+                </>
+              ) : (
+                <div className="text-white/30 text-sm pt-1">No referrals yet</div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="bg-[#111111] border border-[#8B6914]/20 rounded-xl overflow-hidden shadow-2xl">
@@ -412,6 +457,15 @@ export default function Admin() {
                   <TableHead className="text-white/50 font-medium w-16 text-center">#</TableHead>
                   <TableHead className="text-white/50 font-medium">Name</TableHead>
                   <TableHead className="text-white/50 font-medium">Email</TableHead>
+                  <TableHead className="text-white/50 font-medium">
+                    <button
+                      onClick={() => setSortByReferrals((s) => !s)}
+                      className={`flex items-center gap-1.5 transition-colors ${sortByReferrals ? "text-[#C9A84C]" : "text-white/50 hover:text-white/80"}`}
+                    >
+                      <ArrowUpDown className="w-3.5 h-3.5" />
+                      Referrals
+                    </button>
+                  </TableHead>
                   <TableHead className="text-white/50 font-medium text-right">Joined</TableHead>
                 </TableRow>
               </TableHeader>
@@ -422,28 +476,51 @@ export default function Admin() {
                       <TableCell><Skeleton className="h-4 w-8 mx-auto bg-white/10" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-32 bg-white/10" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-48 bg-white/10" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-12 bg-white/10" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24 ml-auto bg-white/10" /></TableCell>
                     </TableRow>
                   ))
-                ) : listData?.entries.length === 0 ? (
+                ) : displayEntries.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={4} className="h-32 text-center text-white/50">
+                    <TableCell colSpan={5} className="h-32 text-center text-white/50">
                       No entries found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  listData?.entries.map((entry, idx) => (
+                  displayEntries.map((entry, idx) => (
                     <TableRow key={entry.id} className="border-[#8B6914]/10 hover:bg-white/[0.02] transition-colors group">
                       <TableCell className="text-center font-mono text-xs text-white/30 group-hover:text-[#C9A84C] transition-colors">
                         {(page - 1) * limit + idx + 1}
                       </TableCell>
                       <TableCell className="font-medium text-white/90">
-                        {entry.name || <span className="text-white/30 italic">Not provided</span>}
+                        <div className="flex items-center gap-2">
+                          {entry.name || <span className="text-white/30 italic">Not provided</span>}
+                          {entry.referredBy && (
+                            <span className="text-[10px] font-mono text-[#8B6914] bg-[#8B6914]/10 border border-[#8B6914]/20 rounded px-1 py-0.5 leading-none" title={`Referred by ${entry.referredBy}`}>
+                              via ref
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-white/70">
                         <a href={`mailto:${entry.email}`} className="hover:text-[#C9A84C] transition-colors">
                           {entry.email}
                         </a>
+                      </TableCell>
+                      <TableCell>
+                        {(entry.referralCount ?? 0) > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-[#C9A84C]">{entry.referralCount}</span>
+                            <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-[#8B6914] to-[#C9A84C]"
+                                style={{ width: `${Math.min(100, ((entry.referralCount ?? 0) / Math.max(1, ...(displayEntries.map(e => e.referralCount ?? 0)))) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-white/20">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-white/50 font-mono text-sm">
                         {format(new Date(entry.createdAt), "MMM d, yyyy")}
