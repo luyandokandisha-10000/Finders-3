@@ -21,6 +21,8 @@ import {
 import {
   useListWaitlistEntries,
   useGetWaitlistCount,
+  useGetAdminReferralStats,
+  getGetAdminReferralStatsQueryKey,
   getListWaitlistEntriesQueryKey
 } from "@workspace/api-client-react";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -280,6 +282,9 @@ export default function Admin() {
   }, [debouncedSearch]);
 
   const { data: countData, isLoading: countLoading } = useGetWaitlistCount();
+  const { data: referralStats, isLoading: referralStatsLoading } = useGetAdminReferralStats({
+    query: { queryKey: getGetAdminReferralStatsQueryKey(), refetchInterval: 30_000 },
+  });
 
   const { data: listData, isLoading: listLoading } = useListWaitlistEntries(
     { search: debouncedSearch || undefined, page, limit },
@@ -295,13 +300,6 @@ export default function Admin() {
   );
 
   const totalPages = listData ? Math.ceil(listData.total / limit) : 1;
-
-  // Derive referral stats from current page data
-  const totalReferralsOnPage = listData?.entries.reduce((sum, e) => sum + (e.referralCount ?? 0), 0) ?? 0;
-  const topReferrer = listData?.entries.reduce<{ name: string | null; count: number } | null>((best, e) => {
-    const c = e.referralCount ?? 0;
-    return !best || c > best.count ? { name: e.name, count: c } : best;
-  }, null);
 
   // Sorted view (client-side for current page)
   const displayEntries = React.useMemo(() => {
@@ -395,14 +393,16 @@ export default function Admin() {
 
           <Card className="bg-[#111111] border-[#8B6914]/30 shadow-[0_0_15px_rgba(139,105,20,0.1)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-5">
-              <CardTitle className="text-xs font-medium text-white/60 uppercase tracking-wider">Referrals (this page)</CardTitle>
+              <CardTitle className="text-xs font-medium text-white/60 uppercase tracking-wider">Total Referrals</CardTitle>
               <Share2 className="h-4 w-4 text-[#C9A84C]" />
             </CardHeader>
             <CardContent className="px-5 pb-4">
               <div className="text-3xl font-serif font-bold text-white">
-                {listLoading ? <Skeleton className="h-9 w-20 bg-white/10" /> : totalReferralsOnPage.toLocaleString()}
+                {referralStatsLoading ? <Skeleton className="h-9 w-20 bg-white/10" /> : (referralStats?.totalReferrals ?? 0).toLocaleString()}
               </div>
-              <p className="text-xs text-white/30 mt-1">across current page</p>
+              <p className="text-xs text-white/30 mt-1">
+                {referralStatsLoading ? <Skeleton className="h-3 w-28 bg-white/10 mt-1" /> : `${(referralStats?.totalReferrers ?? 0).toLocaleString()} unique referrers`}
+              </p>
             </CardContent>
           </Card>
 
@@ -412,14 +412,16 @@ export default function Admin() {
               <Trophy className="h-4 w-4 text-[#C9A84C]" />
             </CardHeader>
             <CardContent className="px-5 pb-4">
-              {listLoading ? (
+              {referralStatsLoading ? (
                 <Skeleton className="h-9 w-32 bg-white/10" />
-              ) : topReferrer && topReferrer.count > 0 ? (
+              ) : referralStats && referralStats.topReferrerCount > 0 ? (
                 <>
                   <div className="text-lg font-serif font-bold text-white truncate">
-                    {topReferrer.name || "Anonymous"}
+                    {referralStats.topReferrerName || "Anonymous"}
                   </div>
-                  <p className="text-xs text-[#C9A84C] mt-0.5">{topReferrer.count} {topReferrer.count === 1 ? "referral" : "referrals"} on this page</p>
+                  <p className="text-xs text-[#C9A84C] mt-0.5">
+                    {referralStats.topReferrerCount} {referralStats.topReferrerCount === 1 ? "referral" : "referrals"} · all time
+                  </p>
                 </>
               ) : (
                 <div className="text-white/30 text-sm pt-1">No referrals yet</div>

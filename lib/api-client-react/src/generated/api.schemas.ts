@@ -60,6 +60,13 @@ export interface Leaderboard {
   totalWithReferrals: number;
 }
 
+export interface AdminReferralStats {
+  totalReferrals: number;
+  totalReferrers: number;
+  topReferrerName?: string | null;
+  topReferrerCount: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }

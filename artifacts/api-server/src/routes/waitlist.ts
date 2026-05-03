@@ -405,4 +405,53 @@ router.get("/waitlist/export", async (req, res) => {
   }
 });
 
+router.get("/waitlist/admin/referral-stats", async (req, res) => {
+  try {
+    const allReferredBy = await db
+      .select({ referredBy: waitlistTable.referredBy })
+      .from(waitlistTable)
+      .where(isNotNull(waitlistTable.referredBy));
+
+    const refCountMap = new Map<string, number>();
+    for (const r of allReferredBy) {
+      if (r.referredBy) {
+        refCountMap.set(r.referredBy, (refCountMap.get(r.referredBy) ?? 0) + 1);
+      }
+    }
+
+    const totalReferrals = allReferredBy.length;
+    const totalReferrers = refCountMap.size;
+
+    // Find the referral code with the most referrals
+    let topCode: string | null = null;
+    let topCount = 0;
+    for (const [code, cnt] of refCountMap.entries()) {
+      if (cnt > topCount) {
+        topCount = cnt;
+        topCode = code;
+      }
+    }
+
+    let topReferrerName: string | null = null;
+    if (topCode) {
+      const [topEntry] = await db
+        .select({ name: waitlistTable.name })
+        .from(waitlistTable)
+        .where(eq(waitlistTable.referralCode, topCode))
+        .limit(1);
+      topReferrerName = topEntry?.name ?? null;
+    }
+
+    res.json({
+      totalReferrals,
+      totalReferrers,
+      topReferrerName,
+      topReferrerCount: topCount,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch admin referral stats");
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
 export default router;

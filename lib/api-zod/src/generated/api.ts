@@ -85,6 +85,17 @@ export const GetWaitlistLeaderboardResponse = zod.object({
 });
 
 /**
+ * Returns total referrals, total referrers, and top referrer across all entries
+ * @summary Get global referral stats for admin
+ */
+export const GetAdminReferralStatsResponse = zod.object({
+  totalReferrals: zod.number(),
+  totalReferrers: zod.number(),
+  topReferrerName: zod.string().nullish(),
+  topReferrerCount: zod.number(),
+});
+
+/**
  * Returns referral count and position for a given referral code
  * @summary Get referral stats
  */

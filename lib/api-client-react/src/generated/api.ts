@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AdminReferralStats,
   ErrorResponse,
   GetWaitlistLeaderboardParams,
   HealthStatus,
@@ -547,6 +548,82 @@ export function useGetWaitlistLeaderboard<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetWaitlistLeaderboardQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns total referrals, total referrers, and top referrer across all entries
+ * @summary Get global referral stats for admin
+ */
+export const getGetAdminReferralStatsUrl = () => {
+  return `/api/waitlist/admin/referral-stats`;
+};
+
+export const getAdminReferralStats = async (
+  options?: RequestInit,
+): Promise<AdminReferralStats> => {
+  return customFetch<AdminReferralStats>(getGetAdminReferralStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminReferralStatsQueryKey = () => {
+  return [`/api/waitlist/admin/referral-stats`] as const;
+};
+
+export const getGetAdminReferralStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminReferralStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminReferralStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminReferralStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAdminReferralStats>>
+  > = ({ signal }) => getAdminReferralStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminReferralStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminReferralStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminReferralStats>>
+>;
+export type GetAdminReferralStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get global referral stats for admin
+ */
+
+export function useGetAdminReferralStats<
+  TData = Awaited<ReturnType<typeof getAdminReferralStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminReferralStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminReferralStatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

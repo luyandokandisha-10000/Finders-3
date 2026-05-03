@@ -128,6 +128,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Leaderboard"
+  /waitlist/admin/referral-stats:
+    get:
+      operationId: getAdminReferralStats
+      tags: [waitlist]
+      summary: Get global referral stats for admin
+      description: Returns total referrals, total referrers, and top referrer across all entries
+      responses:
+        "200":
+          description: Admin referral stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReferralStats"
   /waitlist/referral/{code}:
     get:
       operationId: getReferralStats
@@ -279,6 +292,22 @@ components:
       required:
         - entries
         - totalWithReferrals
+    AdminReferralStats:
+      type: object
+      properties:
+        totalReferrals:
+          type: integer
+        totalReferrers:
+          type: integer
+        topReferrerName:
+          type: string
+          nullable: true
+        topReferrerCount:
+          type: integer
+      required:
+        - totalReferrals
+        - totalReferrers
+        - topReferrerCount
     ErrorResponse:
       type: object
       properties:
