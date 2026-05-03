@@ -7,6 +7,170 @@ import { JoinWaitlistBody, ListWaitlistEntriesQueryParams } from "@workspace/api
 const router = Router();
 
 const SESSION_SECRET = process.env.SESSION_SECRET ?? "fallback-dev-secret";
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL;
+
+function buildAppBaseUrl(): string {
+  const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
+  return domain ? `https://${domain}` : "http://localhost:80";
+}
+
+function buildWelcomeEmailHtml(
+  firstName: string,
+  position: number,
+  referralCode: string,
+  referralLink: string,
+  unsubscribeUrl: string
+): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>You're on the Finders waitlist!</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0A0A0A;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0A;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+          <!-- Logo -->
+          <tr>
+            <td align="center" style="padding-bottom:32px;">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color:#111111;border:1px solid rgba(139,105,20,0.4);border-radius:12px;padding:12px 28px;">
+                    <span style="font-size:20px;font-weight:700;color:#C9A84C;letter-spacing:3px;text-transform:uppercase;">FINDERS</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#111111;border:1px solid rgba(139,105,20,0.2);border-radius:16px;padding:48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                <tr><td style="height:2px;background-color:#8B6914;border-radius:2px;"></td></tr>
+              </table>
+              <p style="margin:0 0 8px 0;font-size:13px;color:rgba(232,232,232,0.45);text-transform:uppercase;letter-spacing:1.5px;">Hey ${firstName},</p>
+              <h1 style="margin:0 0 12px 0;font-size:26px;font-weight:700;color:#FFFFFF;line-height:1.35;">You're on the list. 🎉</h1>
+              <p style="margin:0 0 28px 0;font-size:16px;color:rgba(232,232,232,0.7);line-height:1.75;">
+                Welcome to the Finders early access waitlist. You're currently at position <strong style="color:#C9A84C;">#${position}</strong>. Move up by inviting friends with your personal referral link.
+              </p>
+
+              <!-- Position badge -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                <tr>
+                  <td style="background-color:rgba(139,105,20,0.08);border:1px solid rgba(139,105,20,0.25);border-radius:12px;padding:20px 24px;">
+                    <p style="margin:0 0 4px 0;font-size:11px;color:rgba(232,232,232,0.4);text-transform:uppercase;letter-spacing:1.5px;">Your waitlist position</p>
+                    <p style="margin:0;font-size:36px;font-weight:700;color:#C9A84C;">#${position}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Referral section -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                <tr><td style="height:1px;background-color:rgba(139,105,20,0.15);"></td></tr>
+              </table>
+              <p style="margin:0 0 6px 0;font-size:12px;color:rgba(232,232,232,0.35);text-transform:uppercase;letter-spacing:1.5px;">Your referral link</p>
+              <p style="margin:0 0 16px 0;font-size:14px;color:rgba(232,232,232,0.55);line-height:1.65;">
+                Each friend who signs up through your link moves you one spot closer to the top — and the people at the top get early access first.
+              </p>
+              <!-- Referral link box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                <tr>
+                  <td style="background-color:#0A0A0A;border:1px solid rgba(139,105,20,0.3);border-radius:8px;padding:14px 18px;">
+                    <span style="font-family:monospace;font-size:13px;color:#C9A84C;word-break:break-all;">${referralLink}</span>
+                  </td>
+                </tr>
+              </table>
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" style="margin-bottom:36px;">
+                <tr>
+                  <td style="background-color:#8B6914;border-radius:8px;">
+                    <a href="${referralLink}" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#000000;text-decoration:none;letter-spacing:0.5px;">
+                      Share Your Link →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                <tr><td style="height:1px;background-color:rgba(139,105,20,0.15);"></td></tr>
+              </table>
+
+              <!-- What you get -->
+              <p style="margin:0 0 12px 0;font-size:12px;color:rgba(232,232,232,0.35);text-transform:uppercase;letter-spacing:1.5px;">What Finders gives you</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <span style="color:#C9A84C;font-weight:600;font-size:15px;">Find Jobs &amp; Gigs</span>
+                  <span style="color:rgba(232,232,232,0.5);font-size:14px;"> — Land high-paying opportunities in your field</span>
+                </td></tr>
+                <tr><td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <span style="color:#C9A84C;font-weight:600;font-size:15px;">Sell Your Projects</span>
+                  <span style="color:rgba(232,232,232,0.5);font-size:14px;"> — Apps, art, and digital work — all in one marketplace</span>
+                </td></tr>
+                <tr><td style="padding:10px 0;">
+                  <span style="color:#C9A84C;font-weight:600;font-size:15px;">Connect with Clients</span>
+                  <span style="color:rgba(232,232,232,0.5);font-size:14px;"> — Build relationships with people who pay well</span>
+                </td></tr>
+              </table>
+              <p style="margin:0;font-size:14px;color:rgba(232,232,232,0.4);line-height:1.7;">We'll be in touch soon.<br/><span style="color:#C9A84C;font-weight:600;">The Finders Team</span></p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top:24px;">
+              <p style="margin:0 0 4px 0;font-size:11px;color:rgba(232,232,232,0.2);">Your referral code: <span style="color:rgba(201,168,76,0.5);font-family:monospace;">${referralCode}</span></p>
+              <p style="margin:0 0 6px 0;font-size:11px;color:rgba(232,232,232,0.2);">You received this because you joined the Finders waitlist.</p>
+              <p style="margin:0;font-size:11px;color:rgba(232,232,232,0.2);">
+                Don't want future emails? <a href="${unsubscribeUrl}" style="color:rgba(201,168,76,0.6);text-decoration:underline;">Unsubscribe</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function sendWelcomeEmail(
+  log: { error: (obj: object, msg: string) => void },
+  entry: { email: string; name?: string | null; referralCode: string },
+  position: number
+): Promise<void> {
+  if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) return;
+
+  const firstName = entry.name ? entry.name.split(" ")[0] : "there";
+  const base = buildAppBaseUrl();
+  const referralLink = `${base}/?ref=${entry.referralCode}`;
+  const unsubscribeToken = createUnsubscribeToken(entry.email);
+  const unsubscribeUrl = `${base}/api/waitlist/unsubscribe?email=${encodeURIComponent(entry.email)}&token=${unsubscribeToken}`;
+  const html = buildWelcomeEmailHtml(firstName, position, entry.referralCode, referralLink, unsubscribeUrl);
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: entry.email,
+        subject: "You're on the Finders waitlist — share your link to move up",
+        html,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      log.error({ status: res.status, body, email: entry.email }, "Welcome email rejected by Resend");
+    }
+  } catch (err) {
+    log.error({ err, email: entry.email }, "Failed to send welcome email");
+  }
+}
 
 export function createUnsubscribeToken(email: string): string {
   return crypto.createHmac("sha256", SESSION_SECRET).update(email.toLowerCase()).digest("hex");
@@ -97,6 +261,9 @@ router.post("/waitlist", async (req, res) => {
       position,
       referralCode,
     });
+
+    // Fire welcome email after responding so it never blocks the signup
+    sendWelcomeEmail(req.log, { email, name, referralCode }, position).catch(() => {});
   } catch (err) {
     req.log.error({ err }, "Failed to join waitlist");
     res.status(500).json({ error: "Something went wrong. Please try again." });
