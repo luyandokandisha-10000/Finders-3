@@ -4,8 +4,10 @@ import {
   useJoinWaitlist,
   useGetWaitlistCount,
   useGetReferralStats,
+  useGetWaitlistLeaderboard,
   getGetWaitlistCountQueryKey,
   getGetReferralStatsQueryKey,
+  getGetWaitlistLeaderboardQueryKey,
 } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { BriefcaseIcon, DollarSign, Users, ChevronRight, CheckCircle2, Copy, Check, Share2, TrendingUp } from "lucide-react";
+import { BriefcaseIcon, DollarSign, Users, ChevronRight, CheckCircle2, Copy, Check, Share2, TrendingUp, Trophy, Medal, Award } from "lucide-react";
 import logo from "@assets/IMG_20260428_115702~2_1777703108675.jpg";
 
 const REFERRAL_CODE_KEY = "finders_referral_code";
@@ -125,6 +127,159 @@ function ReferralCard({ referralCode, position }: { referralCode: string; positi
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function Leaderboard() {
+  const { data, isLoading } = useGetWaitlistLeaderboard(
+    { limit: 10 },
+    { query: { queryKey: getGetWaitlistLeaderboardQueryKey({ limit: 10 }), refetchInterval: 30000 } }
+  );
+
+  const entries = data?.entries ?? [];
+  const maxCount = entries[0]?.referralCount ?? 1;
+
+  return (
+    <section className="py-24 bg-[#050505] relative overflow-hidden">
+      {/* Ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-[#8B6914]/5 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="container mx-auto px-6 max-w-3xl relative z-10">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#8B6914]/30 bg-[#8B6914]/10 text-[#C9A84C] text-sm font-medium mb-6">
+            <Trophy className="w-4 h-4" />
+            Referral Leaderboard
+          </div>
+          <h2 className="font-serif text-3xl md:text-5xl font-bold text-white mb-4">
+            Who's Leading the Pack?
+          </h2>
+          <p className="text-muted-foreground max-w-lg mx-auto">
+            Top referrers get priority access when we launch. Share your link and climb the ranks.
+          </p>
+        </motion.div>
+
+        {/* Board */}
+        <div className="bg-[#0D0D0D] border border-[#8B6914]/20 rounded-2xl overflow-hidden shadow-2xl">
+          {/* Top 3 podium */}
+          {!isLoading && entries.length >= 3 && (
+            <div className="grid grid-cols-3 gap-px bg-[#8B6914]/10 border-b border-[#8B6914]/20">
+              {/* 2nd */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-col items-center justify-end pt-6 pb-5 px-4 bg-[#0D0D0D] gap-2"
+              >
+                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/50 font-serif font-bold text-lg">2</div>
+                <p className="text-sm font-semibold text-white/70 text-center truncate w-full text-center">{entries[1]?.displayName}</p>
+                <p className="text-xs text-white/40">{entries[1]?.referralCount} referrals</p>
+              </motion.div>
+              {/* 1st */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0 }}
+                className="flex flex-col items-center justify-end pt-4 pb-5 px-4 bg-[#111111] border-x border-[#8B6914]/20 gap-2 relative"
+              >
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <Trophy className="w-6 h-6 text-[#C9A84C]" />
+                </div>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8B6914] to-[#C9A84C] flex items-center justify-center text-black font-serif font-bold text-xl shadow-[0_0_20px_rgba(139,105,20,0.4)]">1</div>
+                <p className="text-sm font-bold text-white text-center truncate w-full text-center">{entries[0]?.displayName}</p>
+                <p className="text-xs text-[#C9A84C] font-semibold">{entries[0]?.referralCount} referrals</p>
+              </motion.div>
+              {/* 3rd */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="flex flex-col items-center justify-end pt-8 pb-5 px-4 bg-[#0D0D0D] gap-2"
+              >
+                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/50 font-serif font-bold text-lg">3</div>
+                <p className="text-sm font-semibold text-white/70 text-center truncate w-full text-center">{entries[2]?.displayName}</p>
+                <p className="text-xs text-white/40">{entries[2]?.referralCount} referrals</p>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Rest of the list */}
+          <div className="divide-y divide-[#8B6914]/10">
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-6 py-4">
+                  <div className="w-6 h-4 bg-white/5 rounded animate-pulse" />
+                  <div className="flex-1 h-4 bg-white/5 rounded animate-pulse" />
+                  <div className="w-20 h-3 bg-white/5 rounded animate-pulse" />
+                </div>
+              ))
+            ) : entries.length === 0 ? (
+              <div className="py-16 text-center">
+                <Trophy className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                <p className="text-white/30 text-sm">No referrals yet — be the first!</p>
+                <p className="text-white/20 text-xs mt-1">Sign up and share your link to claim #1.</p>
+              </div>
+            ) : (
+              entries.slice(entries.length >= 3 ? 3 : 0).map((entry, i) => {
+                const rank = (entries.length >= 3 ? 3 : 0) + i + 1;
+                const barWidth = Math.max(8, Math.round((entry.referralCount / maxCount) * 100));
+                return (
+                  <motion.div
+                    key={rank}
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors"
+                  >
+                    <span className="w-6 text-right text-sm font-mono text-white/30 shrink-0">#{rank}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white/80 truncate">{entry.displayName}</p>
+                      <div className="mt-1.5 h-1 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          whileInView={{ width: `${barWidth}%` }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 + i * 0.04 }}
+                          className="h-full rounded-full bg-gradient-to-r from-[#8B6914] to-[#C9A84C]"
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-[#C9A84C] shrink-0 tabular-nums">
+                      {entry.referralCount} {entry.referralCount === 1 ? "referral" : "referrals"}
+                    </span>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer CTA */}
+          {!isLoading && (
+            <div className="px-6 py-4 border-t border-[#8B6914]/10 bg-[#0A0A0A] flex items-center justify-between gap-4">
+              <p className="text-xs text-white/30">
+                {data?.totalWithReferrals ?? 0} {data?.totalWithReferrals === 1 ? "person has" : "people have"} referred at least one friend.
+              </p>
+              <button
+                onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
+                className="text-xs font-semibold text-[#C9A84C] hover:text-white transition-colors shrink-0"
+              >
+                Get your link →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -392,6 +547,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Leaderboard */}
+      <Leaderboard />
 
       {/* Social Proof / Hype */}
       <section className="py-24 bg-primary text-black">

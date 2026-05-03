@@ -183,6 +183,57 @@ async function computePosition(referralCode: string): Promise<number> {
   return idx === -1 ? sorted.length : idx + 1;
 }
 
+router.get("/waitlist/leaderboard", async (req, res) => {
+  const limitParam = parseInt((req.query.limit as string) ?? "10", 10);
+  const limit = Math.min(Math.max(limitParam || 10, 1), 50);
+
+  try {
+    // Get all entries
+    const allEntries = await db
+      .select({ name: waitlistTable.name, referralCode: waitlistTable.referralCode, createdAt: waitlistTable.createdAt })
+      .from(waitlistTable)
+      .orderBy(asc(waitlistTable.createdAt));
+
+    // Count referrals per code
+    const allReferred = await db
+      .select({ referredBy: waitlistTable.referredBy })
+      .from(waitlistTable)
+      .where(isNotNull(waitlistTable.referredBy));
+
+    const refCounts = new Map<string, number>();
+    for (const r of allReferred) {
+      if (r.referredBy) {
+        refCounts.set(r.referredBy, (refCounts.get(r.referredBy) ?? 0) + 1);
+      }
+    }
+
+    // Sort by referralCount DESC, then createdAt ASC
+    const sorted = allEntries
+      .map((e) => ({ name: e.name, referralCode: e.referralCode, count: refCounts.get(e.referralCode) ?? 0 }))
+      .sort((a, b) => b.count - a.count || 0)
+      .filter((e) => e.count > 0)
+      .slice(0, limit);
+
+    const entries = sorted.map((e, i) => ({
+      rank: i + 1,
+      displayName: maskName(e.name),
+      referralCount: e.count,
+    }));
+
+    res.json({ entries, totalWithReferrals: refCounts.size });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get leaderboard");
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
+function maskName(name: string | null): string {
+  if (!name?.trim()) return "Anonymous";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+}
+
 router.get("/waitlist/unsubscribe", async (req, res) => {
   const { email, token } = req.query as { email?: string; token?: string };
 

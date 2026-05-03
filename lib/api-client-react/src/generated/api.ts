@@ -18,7 +18,9 @@ import type {
 
 import type {
   ErrorResponse,
+  GetWaitlistLeaderboardParams,
   HealthStatus,
+  Leaderboard,
   ListWaitlistEntriesParams,
   ReferralStats,
   WaitlistCount,
@@ -444,6 +446,107 @@ export function useExportWaitlist<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getExportWaitlistQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns top referrers ranked by referral count
+ * @summary Get referral leaderboard
+ */
+export const getGetWaitlistLeaderboardUrl = (
+  params?: GetWaitlistLeaderboardParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/waitlist/leaderboard?${stringifiedParams}`
+    : `/api/waitlist/leaderboard`;
+};
+
+export const getWaitlistLeaderboard = async (
+  params?: GetWaitlistLeaderboardParams,
+  options?: RequestInit,
+): Promise<Leaderboard> => {
+  return customFetch<Leaderboard>(getGetWaitlistLeaderboardUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWaitlistLeaderboardQueryKey = (
+  params?: GetWaitlistLeaderboardParams,
+) => {
+  return [`/api/waitlist/leaderboard`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetWaitlistLeaderboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWaitlistLeaderboard>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetWaitlistLeaderboardParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getWaitlistLeaderboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetWaitlistLeaderboardQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWaitlistLeaderboard>>
+  > = ({ signal }) =>
+    getWaitlistLeaderboard(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWaitlistLeaderboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWaitlistLeaderboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWaitlistLeaderboard>>
+>;
+export type GetWaitlistLeaderboardQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get referral leaderboard
+ */
+
+export function useGetWaitlistLeaderboard<
+  TData = Awaited<ReturnType<typeof getWaitlistLeaderboard>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetWaitlistLeaderboardParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getWaitlistLeaderboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWaitlistLeaderboardQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

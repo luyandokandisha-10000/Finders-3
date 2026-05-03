@@ -108,6 +108,26 @@ paths:
             text/csv:
               schema:
                 type: string
+  /waitlist/leaderboard:
+    get:
+      operationId: getWaitlistLeaderboard
+      tags: [waitlist]
+      summary: Get referral leaderboard
+      description: Returns top referrers ranked by referral count
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Leaderboard"
   /waitlist/referral/{code}:
     get:
       operationId: getReferralStats
@@ -225,6 +245,31 @@ components:
         - referralCount
         - position
         - totalSignups
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        displayName:
+          type: string
+        referralCount:
+          type: integer
+      required:
+        - rank
+        - displayName
+        - referralCount
+    Leaderboard:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+        totalWithReferrals:
+          type: integer
+      required:
+        - entries
+        - totalWithReferrals
     ErrorResponse:
       type: object
       properties:

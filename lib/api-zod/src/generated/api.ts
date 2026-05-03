@@ -61,6 +61,27 @@ export const ListWaitlistEntriesResponse = zod.object({
 });
 
 /**
+ * Returns top referrers ranked by referral count
+ * @summary Get referral leaderboard
+ */
+export const getWaitlistLeaderboardQueryLimitDefault = 10;
+
+export const GetWaitlistLeaderboardQueryParams = zod.object({
+  limit: zod.coerce.number().default(getWaitlistLeaderboardQueryLimitDefault),
+});
+
+export const GetWaitlistLeaderboardResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      rank: zod.number(),
+      displayName: zod.string(),
+      referralCount: zod.number(),
+    }),
+  ),
+  totalWithReferrals: zod.number(),
+});
+
+/**
  * Returns referral count and position for a given referral code
  * @summary Get referral stats
  */

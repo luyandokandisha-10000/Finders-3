@@ -46,6 +46,17 @@ export interface ReferralStats {
   totalSignups: number;
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  referralCount: number;
+}
+
+export interface Leaderboard {
+  entries: LeaderboardEntry[];
+  totalWithReferrals: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -56,5 +67,9 @@ export type ListWaitlistEntriesParams = {
    */
   search?: string;
   page?: number;
+  limit?: number;
+};
+
+export type GetWaitlistLeaderboardParams = {
   limit?: number;
 };

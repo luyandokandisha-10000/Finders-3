@@ -7,7 +7,10 @@
  */
 
 export * from "./errorResponse";
+export * from "./getWaitlistLeaderboardParams";
 export * from "./healthStatus";
+export * from "./leaderboard";
+export * from "./leaderboardEntry";
 export * from "./listWaitlistEntriesParams";
 export * from "./referralStats";
 export * from "./waitlistCount";
