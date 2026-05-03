@@ -85,6 +85,22 @@ export const GetWaitlistLeaderboardResponse = zod.object({
 });
 
 /**
+ * Returns current position, referral count, and referral code for a given email
+ * @summary Check waitlist position by email
+ */
+export const CheckWaitlistPositionQueryParams = zod.object({
+  email: zod.coerce.string(),
+});
+
+export const CheckWaitlistPositionResponse = zod.object({
+  position: zod.number(),
+  referralCount: zod.number(),
+  totalSignups: zod.number(),
+  referralCode: zod.string(),
+  name: zod.string().nullish(),
+});
+
+/**
  * Returns total referrals, total referrers, and top referrer across all entries
  * @summary Get global referral stats for admin
  */

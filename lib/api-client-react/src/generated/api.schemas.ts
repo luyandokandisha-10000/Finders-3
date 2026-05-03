@@ -60,6 +60,14 @@ export interface Leaderboard {
   totalWithReferrals: number;
 }
 
+export interface WaitlistPosition {
+  position: number;
+  referralCount: number;
+  totalSignups: number;
+  referralCode: string;
+  name?: string | null;
+}
+
 export interface AdminReferralStats {
   totalReferrals: number;
   totalReferrers: number;
@@ -82,4 +90,8 @@ export type ListWaitlistEntriesParams = {
 
 export type GetWaitlistLeaderboardParams = {
   limit?: number;
+};
+
+export type CheckWaitlistPositionParams = {
+  email: string;
 };

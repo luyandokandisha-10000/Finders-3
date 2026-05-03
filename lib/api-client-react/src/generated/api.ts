@@ -18,6 +18,7 @@ import type {
 
 import type {
   AdminReferralStats,
+  CheckWaitlistPositionParams,
   ErrorResponse,
   GetWaitlistLeaderboardParams,
   HealthStatus,
@@ -27,6 +28,7 @@ import type {
   WaitlistCount,
   WaitlistEntriesList,
   WaitlistEntry,
+  WaitlistPosition,
   WaitlistResponse,
 } from "./api.schemas";
 
@@ -548,6 +550,107 @@ export function useGetWaitlistLeaderboard<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetWaitlistLeaderboardQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns current position, referral count, and referral code for a given email
+ * @summary Check waitlist position by email
+ */
+export const getCheckWaitlistPositionUrl = (
+  params: CheckWaitlistPositionParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/waitlist/position?${stringifiedParams}`
+    : `/api/waitlist/position`;
+};
+
+export const checkWaitlistPosition = async (
+  params: CheckWaitlistPositionParams,
+  options?: RequestInit,
+): Promise<WaitlistPosition> => {
+  return customFetch<WaitlistPosition>(getCheckWaitlistPositionUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCheckWaitlistPositionQueryKey = (
+  params?: CheckWaitlistPositionParams,
+) => {
+  return [`/api/waitlist/position`, ...(params ? [params] : [])] as const;
+};
+
+export const getCheckWaitlistPositionQueryOptions = <
+  TData = Awaited<ReturnType<typeof checkWaitlistPosition>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: CheckWaitlistPositionParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof checkWaitlistPosition>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getCheckWaitlistPositionQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof checkWaitlistPosition>>
+  > = ({ signal }) =>
+    checkWaitlistPosition(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof checkWaitlistPosition>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type CheckWaitlistPositionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof checkWaitlistPosition>>
+>;
+export type CheckWaitlistPositionQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Check waitlist position by email
+ */
+
+export function useCheckWaitlistPosition<
+  TData = Awaited<ReturnType<typeof checkWaitlistPosition>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  params: CheckWaitlistPositionParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof checkWaitlistPosition>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getCheckWaitlistPositionQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

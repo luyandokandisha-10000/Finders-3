@@ -7,6 +7,7 @@
  */
 
 export * from "./adminReferralStats";
+export * from "./checkWaitlistPositionParams";
 export * from "./errorResponse";
 export * from "./getWaitlistLeaderboardParams";
 export * from "./healthStatus";
@@ -18,4 +19,5 @@ export * from "./waitlistCount";
 export * from "./waitlistEntriesList";
 export * from "./waitlistEntry";
 export * from "./waitlistEntryRecord";
+export * from "./waitlistPosition";
 export * from "./waitlistResponse";

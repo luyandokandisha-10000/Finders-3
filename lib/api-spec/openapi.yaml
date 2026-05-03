@@ -128,6 +128,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Leaderboard"
+  /waitlist/position:
+    get:
+      operationId: checkWaitlistPosition
+      tags: [waitlist]
+      summary: Check waitlist position by email
+      description: Returns current position, referral count, and referral code for a given email
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Waitlist position info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistPosition"
+        "404":
+          description: Email not on waitlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /waitlist/admin/referral-stats:
     get:
       operationId: getAdminReferralStats
@@ -292,6 +317,25 @@ components:
       required:
         - entries
         - totalWithReferrals
+    WaitlistPosition:
+      type: object
+      properties:
+        position:
+          type: integer
+        referralCount:
+          type: integer
+        totalSignups:
+          type: integer
+        referralCode:
+          type: string
+        name:
+          type: string
+          nullable: true
+      required:
+        - position
+        - referralCount
+        - totalSignups
+        - referralCode
     AdminReferralStats:
       type: object
       properties:

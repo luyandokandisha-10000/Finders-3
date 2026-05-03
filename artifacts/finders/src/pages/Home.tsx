@@ -99,9 +99,14 @@ function ReferralCard({ referralCode, position }: { referralCode: string; positi
 
       {/* Share link */}
       <div className="bg-black/40 border border-[#8B6914]/30 rounded-xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Share2 className="w-4 h-4 text-[#C9A84C]" />
-          <p className="text-sm font-semibold text-white">Move up the list — share your link</p>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Share2 className="w-4 h-4 text-[#C9A84C]" />
+            <p className="text-sm font-semibold text-white">Move up the list — share your link</p>
+          </div>
+          <a href="/position" className="text-xs text-white/30 hover:text-[#C9A84C] transition-colors">
+            View full stats →
+          </a>
         </div>
         <p className="text-xs text-white/50 mb-3 leading-relaxed">
           Every friend who signs up through your link moves you closer to the front. Each referral bumps you ahead in line.
@@ -370,6 +375,7 @@ export default function Home() {
             <a href="#features" className="hover:text-primary transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-primary transition-colors">How It Works</a>
             <a href="#faq" className="hover:text-primary transition-colors">FAQ</a>
+            <a href="/position" className="hover:text-primary transition-colors">Check My Spot</a>
           </div>
 
           <Button
@@ -634,6 +640,7 @@ export default function Home() {
             <a href="#" className="hover:text-white transition-colors">Twitter</a>
             <a href="#" className="hover:text-white transition-colors">Instagram</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>
+            <a href="/position" className="hover:text-[#C9A84C] transition-colors">Check My Spot</a>
           </div>
         </div>
       </footer>

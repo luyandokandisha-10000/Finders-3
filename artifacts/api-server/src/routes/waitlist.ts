@@ -350,6 +350,47 @@ async function computePosition(referralCode: string): Promise<number> {
   return idx === -1 ? sorted.length : idx + 1;
 }
 
+router.get("/waitlist/position", async (req, res) => {
+  const email = (req.query.email as string)?.toLowerCase().trim();
+  if (!email) {
+    res.status(400).json({ error: "Email is required." });
+    return;
+  }
+
+  try {
+    const [entry] = await db
+      .select({
+        referralCode: waitlistTable.referralCode,
+        name: waitlistTable.name,
+      })
+      .from(waitlistTable)
+      .where(eq(waitlistTable.email, email))
+      .limit(1);
+
+    if (!entry) {
+      res.status(404).json({ error: "This email is not on the waitlist." });
+      return;
+    }
+
+    const [[{ value: totalSignups }], [{ value: referralCount }], position] = await Promise.all([
+      db.select({ value: count() }).from(waitlistTable),
+      db.select({ value: count() }).from(waitlistTable).where(eq(waitlistTable.referredBy, entry.referralCode)),
+      computePosition(entry.referralCode),
+    ]);
+
+    res.json({
+      position,
+      referralCount: Number(referralCount),
+      totalSignups: Number(totalSignups),
+      referralCode: entry.referralCode,
+      name: entry.name ?? null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to check waitlist position");
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
 router.get("/waitlist/leaderboard", async (req, res) => {
   const limitParam = parseInt((req.query.limit as string) ?? "10", 10);
   const limit = Math.min(Math.max(limitParam || 10, 1), 50);
